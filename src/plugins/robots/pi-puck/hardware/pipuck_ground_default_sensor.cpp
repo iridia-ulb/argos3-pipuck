@@ -9,7 +9,7 @@
 #include <argos3/core/utility/logging/argos_log.h>
 #include <argos3/core/utility/configuration/argos_configuration.h>
 
-#include <argos3/plugins/robots/pi-puck/hardware/pipuck.h>
+#include <argos3/plugins/robots/pi-puck/hardware/robot.h>
 
 #include <iio.h>
 
@@ -27,8 +27,8 @@ namespace argos {
       try {
          CCI_PiPuckGroundSensor::Init(t_tree);
          /* Get context and trigger */
-         iio_context* psContext = CPiPuck::GetInstance().GetContext();
-         iio_device* psUpdateTrigger = CPiPuck::GetInstance().GetSensorUpdateTrigger();
+         iio_context* psContext = CRobot::GetInstance().GetContext();
+         iio_device* psUpdateTrigger = CRobot::GetInstance().GetSensorUpdateTrigger();
          /* get a pointer to the device */
          m_psDevice = ::iio_context_find_device(psContext, "epuck-groundsensors");
          if(m_psDevice == nullptr) {

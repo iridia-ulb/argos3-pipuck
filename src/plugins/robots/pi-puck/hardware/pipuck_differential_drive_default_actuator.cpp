@@ -7,7 +7,7 @@
 #include "pipuck_differential_drive_default_actuator.h"
 
 #include <argos3/core/utility/logging/argos_log.h>
-#include <argos3/plugins/robots/pi-puck/hardware/pipuck.h>
+#include <argos3/plugins/robots/pi-puck/hardware/robot.h>
 
 #include <iio.h>
 
@@ -23,8 +23,8 @@ namespace argos {
       try {
          CCI_PiPuckDifferentialDriveActuator::Init(t_tree);
          /* Get context and trigger */
-         iio_context* psContext = CPiPuck::GetInstance().GetContext();
-         iio_device* psUpdateTrigger = CPiPuck::GetInstance().GetActuatorUpdateTrigger();
+         iio_context* psContext = CRobot::GetInstance().GetContext();
+         iio_device* psUpdateTrigger = CRobot::GetInstance().GetActuatorUpdateTrigger();
          /* get a pointer to the device */
          m_psDevice = ::iio_context_find_device(psContext, "epuck-motors");
          if(m_psDevice == nullptr) {
@@ -105,22 +105,15 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CPiPuckDifferentialDriveDefaultActuator::SetTargetVelocityLeft(Real f_target_velocity_left) {
-      m_fTargetVelocityLeft = f_target_velocity_left;
+   void CPiPuckDifferentialDriveDefaultActuator::SetLinearVelocity(Real f_left, Real f_right) {
+      m_fTargetVelocityLeft = f_left;
+      m_fTargetVelocityRight = f_right;
       m_bUpdateReq = true;
    }
 
    /****************************************/
    /****************************************/
 
-   void CPiPuckDifferentialDriveDefaultActuator::SetTargetVelocityRight(Real f_target_velocity_right) {
-      m_fTargetVelocityRight = -f_target_velocity_right;
-      m_bUpdateReq = true;
-   }
-
-   /****************************************/
-   /****************************************/
-   
 }
 
 REGISTER_ACTUATOR(CPiPuckDifferentialDriveDefaultActuator,
@@ -130,5 +123,5 @@ REGISTER_ACTUATOR(CPiPuckDifferentialDriveDefaultActuator,
                   "The pipuck differential drive actuator.",
                   "This actuator controls the differential drive of the PiPuck.",
                   "Usable"
-   );
+);
    

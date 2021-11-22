@@ -10,7 +10,7 @@
 
 #include <argos3/core/utility/configuration/command_line_arg_parser.h>
 #include <argos3/core/utility/plugins/dynamic_loading.h>
-#include <argos3/plugins/robots/pi-puck/hardware/pipuck.h>
+#include <argos3/plugins/robots/pi-puck/hardware/robot.h>
 
 using namespace argos;
 
@@ -34,7 +34,7 @@ void RunScripts(const std::vector<SScript>& vec_scripts) {
 }
 
 void handler(int n_signal) {
-  CPiPuck::GetInstance().SetSignal(n_signal);
+  CRobot::GetInstance().SetSignal(n_signal);
   /* allow the user to kill application immediately with ctrl-c */
   std::signal(SIGINT, SIG_DFL);
   /* ignore other signals and attempt to allow the robot to shutdown */
@@ -164,21 +164,21 @@ int main(int n_argc, char** ppch_argv) {
       /* get the target number of ticks */
       UInt32 unLength = 0;
       GetNodeAttributeOrDefault(tExperiment, "length", unLength, unLength);
-      /* get Pi-Puck instance */
-      CPiPuck& cPiPuck = CPiPuck::GetInstance();
+      /* get robot instance */
+      CRobot& cRobot = CRobot::GetInstance();
       /* initialize the Pi-Puck */
       RunScripts(m_vecPreInitScripts);
-      cPiPuck.Init(*itController,
-                   strControllerId,
-                   strRouterAddr,
-                   unTicksPerSec,
-                   unLength);
+      cRobot.Init(*itController,
+                  strControllerId,
+                  strRouterAddr,
+                  unTicksPerSec,
+                  unLength);
       RunScripts(m_vecPostInitScripts);
       /* start the Pi-Puck's main loop */
-      cPiPuck.Execute();
+      cRobot.Execute();
       /* clean up */
       RunScripts(m_vecPreDestroyScripts);
-      cPiPuck.Destroy();
+      cRobot.Destroy();
       RunScripts(m_vecPostDestroyScripts);
       /* load all libraries */
       CDynamicLoading::UnloadAllLibraries();

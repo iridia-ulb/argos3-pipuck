@@ -17,7 +17,7 @@ struct iio_channel;
 
 #include <cmath>
 
-#include <argos3/plugins/robots/generic/hardware/actuator.h>
+#include <argos3/plugins/robots/pi-puck/hardware/actuator.h>
 #include <argos3/plugins/robots/pi-puck/control_interface/ci_pipuck_differential_drive_actuator.h>
 
 namespace argos {
@@ -52,9 +52,7 @@ namespace argos {
 
       void Reset() override;
 
-      void SetTargetVelocityLeft(Real f_target_velocity_left) override;
-
-      void SetTargetVelocityRight(Real f_target_velocity_right) override;
+      void SetLinearVelocity(Real f_left, Real f_right) override;
 
    private:
 

@@ -19,7 +19,7 @@ struct iio_device;
 struct iio_channel;
 struct iio_buffer;
 
-#include <argos3/plugins/robots/generic/hardware/sensor.h>
+#include <argos3/plugins/robots/pi-puck/hardware/sensor.h>
 #include <argos3/plugins/robots/pi-puck/control_interface/ci_pipuck_ground_sensor.h>
 
 namespace argos {

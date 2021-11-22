@@ -11,7 +11,7 @@ namespace argos {
    class CPiPuckSystemDefaultSensor;
 }
 
-#include <argos3/plugins/robots/generic/hardware/sensor.h>
+#include <argos3/plugins/robots/pi-puck/hardware/sensor.h>
 #include <argos3/plugins/robots/pi-puck/control_interface/ci_pipuck_system_sensor.h>
 
 #include <chrono>
