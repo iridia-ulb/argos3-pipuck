@@ -45,11 +45,7 @@ namespace argos {
       m_unLength = un_length;
       try {        
          /* Create an instance of the controller controller */
-         CCI_Controller* pcController = CFactory<CCI_Controller>::New(t_controller.Value());
-         m_pcController = dynamic_cast<CLuaController*>(pcController);
-         if(m_pcController == nullptr) {
-            THROW_ARGOSEXCEPTION("ERROR: controller \"" << t_controller.Value() << "\" is not a Lua controller");
-         }
+         m_pcController = CFactory<CCI_Controller>::New(t_controller.Value());
          /* set the controller ID */
          m_pcController->SetId(str_controller_id);
          LOG << "[INFO] Set controller ID to: " << str_controller_id << std::endl;
@@ -149,9 +145,10 @@ namespace argos {
          }
          /* Init the controller with the parameters */
          m_pcController->Init(GetNode(t_controller, "params"));
-         /* check for errors */
-         if(!m_pcController->IsOK()) {
-            THROW_ARGOSEXCEPTION("Controller: " << m_pcController->GetErrorMessage());
+         /* if CCI_Controller is a CLuaController check for internal errors */
+         CLuaController* pcLuaController = dynamic_cast<CLuaController*>(m_pcController);
+         if(pcLuaController && !pcLuaController->IsOK()) {
+            THROW_ARGOSEXCEPTION("Controller: " << pcLuaController->GetErrorMessage());
          }
       }
       catch(CARGoSException& ex) {
@@ -163,6 +160,10 @@ namespace argos {
    /****************************************/
 
    void CRobot::Execute() {
+      /* try convert the CCI_Controller to a CLuaController so we can check
+         for internal errors */
+      CLuaController* pcLuaController =
+         dynamic_cast<CLuaController*>(m_pcController);
       /* initialize the tick rate */
       CRate cRate(m_unTicksPerSec);
       /* start the main control loop */
@@ -182,8 +183,8 @@ namespace argos {
             /* step the provided controller */
             m_pcController->ControlStep();
             /* check for errors */
-            if(!m_pcController->IsOK()) {
-               THROW_ARGOSEXCEPTION("Controller: " << m_pcController->GetErrorMessage());
+            if(pcLuaController && !pcLuaController->IsOK()) {
+               THROW_ARGOSEXCEPTION("Controller: " << pcLuaController->GetErrorMessage());
             }
             /* actuator update */
             /* TODO: assuming this doesn't break anything, the act phase should be called before the step phase */

@@ -8,9 +8,9 @@
 #define ROBOT_H
 
 namespace argos {
-   class CLuaController;
    class CPhysicalSensor;
    class CPhysicalActuator;
+   class CCI_Controller;
 }
 
 struct iio_context;
@@ -93,7 +93,7 @@ namespace argos {
       UInt32 m_unLength;
 
       /* pointer to the controller */
-      CLuaController* m_pcController;
+      CCI_Controller* m_pcController;
 
       /* connection to the message router */
       CTCPSocket m_cSocket;
