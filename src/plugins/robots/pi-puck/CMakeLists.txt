@@ -11,8 +11,8 @@ set(ARGOS3_HEADERS_PLUGINS_ROBOTS_PIPUCK_HARDWARE
   hardware/pipuck_leds_default_actuator.h
   hardware/pipuck_system_default_sensor.h
   hardware/pipuck_rangefinders_default_sensor.h
-  hardware/radios_default_actuator.h
-  hardware/radios_default_sensor.h
+  hardware/simple_radios_default_actuator.h
+  hardware/simple_radios_default_sensor.h
   hardware/robot.h
   hardware/sensor.h)
 
@@ -31,8 +31,8 @@ set(ARGOS3_SOURCES_PLUGINS_ROBOTS_PIPUCK
   hardware/pipuck_leds_default_actuator.cpp
   hardware/pipuck_system_default_sensor.cpp
   hardware/pipuck_rangefinders_default_sensor.cpp
-  hardware/radios_default_actuator.cpp
-  hardware/radios_default_sensor.cpp
+  hardware/simple_radios_default_actuator.cpp
+  hardware/simple_radios_default_sensor.cpp
   hardware/robot.cpp)
 
 # Create an executable for the robot
