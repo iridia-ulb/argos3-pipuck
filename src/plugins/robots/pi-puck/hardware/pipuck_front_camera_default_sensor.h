@@ -1,22 +1,16 @@
 /*
- * @file <argos3/plugins/robots/pi-puck/hardware/pipuck_camera_system_default_sensor.h>
+ * @file <argos3/plugins/robots/pi-puck/hardware/pipuck_front_camera_default_sensor.h>
  *
  * @author Michael Allwright - <allsey87@gmail.com>
  * @author Weixu Zhu (Harry) - <zhuweixu_harry@126.com>
  */
 
-#ifndef PIPUCK_CAMERA_SYSTEM_DEFAULT_SENSOR_H
-#define PIPUCK_CAMERA_SYSTEM_DEFAULT_SENSOR_H
-
-/* forward declarations */
-namespace argos {
-   class CPiPuckCameraSystemDefaultSensor;
-}
+#ifndef PIPUCK_FRONT_CAMERA_DEFAULT_SENSOR_H
+#define PIPUCK_FRONT_CAMERA_DEFAULT_SENSOR_H
 
 struct apriltag_family;
 struct apriltag_detector;
 struct v4l2_buffer;
-struct media_device;
 
 #include <array>
 #include <chrono>
@@ -30,40 +24,42 @@ struct media_device;
 #include <argos3/core/utility/math/vector3.h>
 
 #include <argos3/plugins/robots/pi-puck/hardware/sensor.h>
-#include <argos3/plugins/robots/pi-puck/control_interface/ci_pipuck_camera_system_sensor.h>
+#include <argos3/plugins/robots/pi-puck/control_interface/ci_pipuck_front_camera_sensor.h>
 
 #include <linux/videodev2.h>
 
 namespace argos {
 
-   class CPiPuckCameraSystemDefaultSensor : public CPhysicalSensor,
-                                            public CCI_PiPuckCameraSystemSensor {
+   class CPiPuckFrontCameraDefaultSensor : public CPhysicalSensor,
+                                           public CCI_PiPuckFrontCameraSensor {
 
    public:
 
-      CPiPuckCameraSystemDefaultSensor();
+      CPiPuckFrontCameraDefaultSensor();
 
-      virtual ~CPiPuckCameraSystemDefaultSensor();
+      virtual ~CPiPuckFrontCameraDefaultSensor();
 
-      void Init(TConfigurationNode& t_tree) override;
+      void Init(TConfigurationNode& t_tree);
 
-      void Destroy() override;
+      void Destroy();
 
-      void Update() override;
+      void Update();
 
-      void Enable() override;
+      void Enable();
 
-      void Disable() override;
+      void Disable();
+
+      virtual ELedState DetectLed(const CVector3& c_position) const;
+
+      virtual const STag::TVector& GetTags() const {
+         return m_vecTags;
+      }
+
+      virtual Real GetTimestamp() const {
+         return m_fTimestamp;
+      }
 
    private:
-
-      ELedState DetectLed(const CVector3& c_position) override;
-
-      /* calibration data */
-      CVector2 m_cFocalLength;
-      CVector2 m_cPrincipalPoint;
-      CVector3 m_cPositionOffset;
-      CQuaternion m_cOrientationOffset;
       CSquareMatrix<3> m_cCameraMatrix;
 
       std::array<std::pair<UInt32, void*>, 2> m_arrBuffers;
@@ -74,15 +70,15 @@ namespace argos {
       ::apriltag_family* m_ptTagFamily;
       ::apriltag_detector* m_ptTagDetector;
       ::apriltag_detection_info_t m_tTagDetectionInfo;
-      
-      /* media device */
-      ::media_device* m_psMediaDevice;
 
       /* camera device handle */
       SInt32 m_nCameraHandle;
 
       /* time at initialization */
       std::chrono::steady_clock::time_point m_tpInit;
+
+      STag::TVector m_vecTags;
+      Real m_fTimestamp;
 
       /****************************************/
       /****************************************/

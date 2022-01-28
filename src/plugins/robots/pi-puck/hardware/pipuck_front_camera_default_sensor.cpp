@@ -1,11 +1,11 @@
 /**
- * @file <argos3/plugins/robots/pi-puck/hardware/pipuck_camera_system_default_sensor.cpp>
+ * @file <argos3/plugins/robots/pi-puck/hardware/pipuck_front_camera_default_sensor.cpp>
  *
  * @author Michael Allwright - <allsey87@gmail.com>
  * @author Weixu Zhu (Harry) - <zhuweixu_harry@126.com>
  */
 
-#include "pipuck_camera_system_default_sensor.h"
+#include "pipuck_front_camera_default_sensor.h"
 
 #include <argos3/core/utility/logging/argos_log.h>
 #include <argos3/core/utility/math/vector2.h>
@@ -27,22 +27,9 @@
 #include <regex>
 #include <chrono>
 
-extern "C" {
-   #include <mediactl.h>
-   #include <v4l2subdev.h>
-}
-
-#define DEFAULT_FOCAL_LENGTH_X 313.9f
-#define DEFAULT_FOCAL_LENGTH_Y 313.9f
-#define DEFAULT_PRINCIPAL_POINT_X 160.0f
-#define DEFAULT_PRINCIPAL_POINT_Y 120.0f
-
-#define FILE_MEDIA_DEVICE "/dev/media0"
-#define FILE_VIDEO_DEVICE "/dev/video0"
+#define FILE_VIDEO_DEVICE "/dev/camera0"
 
 #define IMAGE_BYTES_PER_PIXEL 2u
-#define IMAGE_WIDTH 320u
-#define IMAGE_HEIGHT 240u
 
 #define TAG_SIDE_LENGTH 0.0235f
 
@@ -62,9 +49,12 @@ namespace argos {
    /****************************************/
    /****************************************/
    
-   CPiPuckCameraSystemDefaultSensor::CPiPuckCameraSystemDefaultSensor() :
-      m_cFocalLength(DEFAULT_FOCAL_LENGTH_X, DEFAULT_FOCAL_LENGTH_Y),
-      m_cPrincipalPoint(DEFAULT_PRINCIPAL_POINT_X, DEFAULT_PRINCIPAL_POINT_Y) {
+   CPiPuckFrontCameraDefaultSensor::CPiPuckFrontCameraDefaultSensor():
+      m_ptImage(nullptr),
+      m_ptTagFamily(nullptr),
+      m_ptTagDetector(nullptr),
+      m_nCameraHandle(-1),
+      m_fTimestamp(0.0) {
       /* initialize the apriltag components */
       m_ptTagFamily = ::tag36h11_create();
       /* create the tag detector */
@@ -76,17 +66,13 @@ namespace argos {
       m_ptTagDetector->quad_sigma = 0.0f;
       m_ptTagDetector->refine_edges = 1;
       m_ptTagDetector->decode_sharpening = 0.25;
-      m_ptTagDetector->nthreads = 2;
-      /* allocate image memory */
-      m_ptImage = ::image_u8_create_alignment(IMAGE_WIDTH, IMAGE_HEIGHT, 96);
+      m_ptTagDetector->nthreads = 1;
    }
 
    /****************************************/
    /****************************************/
 
-   CPiPuckCameraSystemDefaultSensor::~CPiPuckCameraSystemDefaultSensor() {
-      /* deallocate image memory */
-      ::image_u8_destroy(m_ptImage);
+   CPiPuckFrontCameraDefaultSensor::~CPiPuckFrontCameraDefaultSensor() {
       /* uninitialize the apriltag components */
       ::apriltag_detector_remove_family(m_ptTagDetector, m_ptTagFamily);
       /* destroy the tag detector */
@@ -98,86 +84,27 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CPiPuckCameraSystemDefaultSensor::Init(TConfigurationNode& t_tree) {
+   void CPiPuckFrontCameraDefaultSensor::Init(TConfigurationNode& t_tree) {
       try {
-         CCI_PiPuckCameraSystemSensor::Init(t_tree);
-         /********************************/
-         /* retrieve the calibraton data */
-         /********************************/
-         std::string strCalibrationFilePath;
-         GetNodeAttributeOrDefault(t_tree, "calibration", strCalibrationFilePath, strCalibrationFilePath);
-         if(strCalibrationFilePath.empty()) {
-            LOGERR << "[WARNING] No calibration data provided for the pipuck camera system" << std::endl;
-         }
-         else {
-            ticpp::Document tDocument = ticpp::Document(strCalibrationFilePath);
-            tDocument.LoadFile();
-            TConfigurationNode& tCalibrationNode = *tDocument.FirstChildElement();
-            TConfigurationNode& tSensorNode = GetNode(tCalibrationNode, "pipuck_camera_system");
-            /* read the parameters */
-            GetNodeAttribute(tSensorNode, "focal_length", m_cFocalLength);
-            GetNodeAttribute(tSensorNode, "principal_point", m_cPrincipalPoint);
-            GetNodeAttribute(tSensorNode, "position", m_cPositionOffset);
-            GetNodeAttribute(tSensorNode, "orientation", m_cOrientationOffset);
-         }
-         /* update the camera matrix */
+         CCI_PiPuckFrontCameraSensor::Init(t_tree);
+         /* allocate image memory */
+         m_ptImage = ::image_u8_create_alignment(
+            static_cast<unsigned int>(CCI_PiPuckFrontCameraSensor::m_cResolution.GetX()),
+            static_cast<unsigned int>(CCI_PiPuckFrontCameraSensor::m_cResolution.GetY()),
+            96);
+         /* set the camera matrix */
          m_cCameraMatrix.SetIdentityMatrix();
-         m_cCameraMatrix(0,0) = m_cFocalLength.GetX();
-         m_cCameraMatrix(1,1) = m_cFocalLength.GetY();
-         m_cCameraMatrix(0,2) = m_cPrincipalPoint.GetX();
-         m_cCameraMatrix(1,2) = m_cPrincipalPoint.GetY();
-         /* update the tag detection info structure */
-         m_tTagDetectionInfo.fx = m_cFocalLength.GetX();
-         m_tTagDetectionInfo.fy = m_cFocalLength.GetY();
-         m_tTagDetectionInfo.cx = m_cPrincipalPoint.GetX();
-         m_tTagDetectionInfo.cy = m_cPrincipalPoint.GetY();
+         m_cCameraMatrix(0,0) = CCI_PiPuckFrontCameraSensor::m_cFocalLength.GetX();
+         m_cCameraMatrix(1,1) = CCI_PiPuckFrontCameraSensor::m_cFocalLength.GetY();
+         m_cCameraMatrix(0,2) = CCI_PiPuckFrontCameraSensor::m_cPrincipalPoint.GetX();
+         m_cCameraMatrix(1,2) = CCI_PiPuckFrontCameraSensor::m_cPrincipalPoint.GetY();
+         /* set the tag detection info structure */
+         m_tTagDetectionInfo.fx = CCI_PiPuckFrontCameraSensor::m_cFocalLength.GetX();
+         m_tTagDetectionInfo.fy = CCI_PiPuckFrontCameraSensor::m_cFocalLength.GetY();
+         m_tTagDetectionInfo.cx = CCI_PiPuckFrontCameraSensor::m_cPrincipalPoint.GetX();
+         m_tTagDetectionInfo.cy = CCI_PiPuckFrontCameraSensor::m_cPrincipalPoint.GetY();
          m_tTagDetectionInfo.tagsize = TAG_SIDE_LENGTH;
-         /***************************************/
-         /* open and configure the media device */
-         /***************************************/
-         m_psMediaDevice = media_device_new(FILE_MEDIA_DEVICE);
-         if (m_psMediaDevice == nullptr)
-            THROW_ARGOSEXCEPTION("Could not open media device " << FILE_MEDIA_DEVICE);
-         /* enumerate entities, pads and links */
-         if (media_device_enumerate(m_psMediaDevice) < 0)
-            THROW_ARGOSEXCEPTION("Could not enumerate media device" << FILE_MEDIA_DEVICE);
-         /* reset links */
-         media_reset_links(m_psMediaDevice);
-         /* setup links */
-         if (media_parse_setup_links(m_psMediaDevice, // link
-             "\"OMAP4 ISS CSI2a\":1 -> \"OMAP4 ISS CSI2a output\":0 [1]") < 0)
-            THROW_ARGOSEXCEPTION("Could not link the CSI entities");
-         /* find the OV5640 camera */
-         UInt32 unEntityCount = media_get_entities_count(m_psMediaDevice);
-         std::regex rgxEntityPattern("(ov5640)(.*)");
-         std::string strCameraName;
-         for(UInt32 un_idx = 0; un_idx < unEntityCount; un_idx++) {
-            media_entity* psEntity = media_get_entity(m_psMediaDevice, un_idx);
-            const media_entity_desc* psEntityInfo = media_entity_get_info(psEntity);
-            if (std::regex_match(psEntityInfo->name, rgxEntityPattern)) {
-               strCameraName = psEntityInfo->name;
-               break;
-            }
-         }
-         if (strCameraName.empty()) {
-            THROW_ARGOSEXCEPTION("Could not find the entity for the OV5640 camera");
-         }
-         /* setup formats */
-         std::ostringstream ossMediaConfig;
-         ossMediaConfig << "\"" << strCameraName << "\":0 [UYVY ";
-         ossMediaConfig << std::to_string(IMAGE_WIDTH) << "x" << std::to_string(IMAGE_HEIGHT) << "]";
-         if (v4l2_subdev_parse_setup_formats(m_psMediaDevice, ossMediaConfig.str().c_str()) < 0) {
-            THROW_ARGOSEXCEPTION("Could not set the format of the camera entity");
-         }
-         ossMediaConfig.str("");
-         ossMediaConfig << "\"OMAP4 ISS CSI2a\":0 [UYVY ";
-         ossMediaConfig << std::to_string(IMAGE_WIDTH) << "x" << std::to_string(IMAGE_HEIGHT) << "]";
-         if (v4l2_subdev_parse_setup_formats(m_psMediaDevice, ossMediaConfig.str().c_str()) < 0) {
-            THROW_ARGOSEXCEPTION("Could not set the format of the CSI entity");
-         }
-         /***************************************/
          /* open and configure the video device */
-         /***************************************/
          if ((m_nCameraHandle = ::open(FILE_VIDEO_DEVICE, O_RDWR, 0)) < 0)
             THROW_ARGOSEXCEPTION("Could not open " << FILE_VIDEO_DEVICE);
          int nInput = 0;
@@ -188,11 +115,15 @@ namespace argos {
          //if (::ioctl(m_nCameraHandle, VIDIOC_G_FMT, &sFmt) < 0)
          //   THROW_ARGOSEXCEPTION("Could not get the camera format");
          sFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-         sFormat.fmt.pix.width = IMAGE_WIDTH;
-         sFormat.fmt.pix.height = IMAGE_HEIGHT;
-         sFormat.fmt.pix.sizeimage = IMAGE_WIDTH * IMAGE_HEIGHT * IMAGE_BYTES_PER_PIXEL;
-         sFormat.fmt.pix.bytesperline = IMAGE_WIDTH * IMAGE_BYTES_PER_PIXEL;
-         sFormat.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
+         sFormat.fmt.pix.width =
+            static_cast<unsigned int>(CCI_PiPuckFrontCameraSensor::m_cResolution.GetX());
+         sFormat.fmt.pix.height =
+            static_cast<unsigned int>(CCI_PiPuckFrontCameraSensor::m_cResolution.GetY());;
+         sFormat.fmt.pix.sizeimage =
+            sFormat.fmt.pix.width * sFormat.fmt.pix.height * IMAGE_BYTES_PER_PIXEL;
+         sFormat.fmt.pix.bytesperline =
+            sFormat.fmt.pix.width * IMAGE_BYTES_PER_PIXEL;
+         sFormat.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
          sFormat.fmt.pix.field = V4L2_FIELD_NONE;
          if (::ioctl(m_nCameraHandle, VIDIOC_S_FMT, &sFormat) < 0)
             THROW_ARGOSEXCEPTION("Could not set the camera format");
@@ -245,8 +176,8 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CPiPuckCameraSystemDefaultSensor::Enable() {
-      if(m_bEnabled == false) {
+   void CPiPuckFrontCameraDefaultSensor::Enable() {
+      if(!IsEnabled()) {
          /* enqueue the first buffer */
          ::v4l2_buffer sBuffer;
          ::memset(&sBuffer, 0, sizeof(::v4l2_buffer));
@@ -256,15 +187,15 @@ namespace argos {
          if(::ioctl(m_nCameraHandle, VIDIOC_QBUF, &sBuffer) < 0) {
             THROW_ARGOSEXCEPTION("Could not enqueue used buffer");
          }
-         CCI_PiPuckCameraSystemSensor::Enable();
+         CCI_PiPuckFrontCameraSensor::Enable();
       }
    }
 
    /****************************************/
    /****************************************/
 
-   void CPiPuckCameraSystemDefaultSensor::Disable() {
-      if(m_bEnabled == true) {
+   void CPiPuckFrontCameraDefaultSensor::Disable() {
+      if(IsEnabled()) {
          /* dequeue the next buffer */
          ::v4l2_buffer sBuffer;
          memset(&sBuffer, 0, sizeof(v4l2_buffer));
@@ -274,21 +205,21 @@ namespace argos {
          if(::ioctl(m_nCameraHandle, VIDIOC_DQBUF, &sBuffer) < 0) {
             LOGERR << "[WARNING] Could not dequeue buffer" << std::endl;
          }
-         CCI_PiPuckCameraSystemSensor::Disable();
+         CCI_PiPuckFrontCameraSensor::Disable();
       }
    }
 
    /****************************************/
    /****************************************/
 
-   void CPiPuckCameraSystemDefaultSensor::Update() {
+   void CPiPuckFrontCameraDefaultSensor::Update() {
       /* clear out previous readings */
-      m_tTags.clear();
+      m_vecTags.clear();
       /* update the timestamp in the control interface */
       using namespace std::chrono;
       m_fTimestamp = duration_cast<duration<Real> >(steady_clock::now() - m_tpInit).count();
       /* if enabled, process the next buffer */
-      if(m_bEnabled == true) {
+      if(IsEnabled()) {
          try {
             /* update the buffer iterators */
             m_itCurrentBuffer = m_itNextBuffer;
@@ -316,8 +247,8 @@ namespace argos {
             /* extract the luminance from the data */
             for (UInt32 un_height_index = 0; un_height_index < unImageHeight; un_height_index++) {
                for (UInt32 un_width_index = 0; un_width_index < unImageWidth; un_width_index++) {
-                  /* copy data */
-                  m_ptImage->buf[unDestinationIndex++] = punImageData[unSourceIndex + 1];
+                  /* extract the luminance from the data (assumes V4L2_PIX_FMT_YUYV) */
+                  m_ptImage->buf[unDestinationIndex++] = punImageData[unSourceIndex];
                   /* move to the next pixel */
                   unSourceIndex += 2;
                }
@@ -332,7 +263,7 @@ namespace argos {
             /* get the detected tags count */
             size_t unTagCount = static_cast<size_t>(::zarray_size(ptDetectionArray));
             /* reserve space for the tags */
-            m_tTags.reserve(unTagCount);
+            m_vecTags.reserve(unTagCount);
             /* copy detection data to the control interface */
             for(size_t un_index = 0; un_index < unTagCount; un_index++) {
                ::apriltag_detection_t *ptDetection;
@@ -351,7 +282,7 @@ namespace argos {
                CRotationMatrix3 cTagOrientation(tPose.R->data);
                CVector3 cTagPosition(tPose.t->data[0], tPose.t->data[1], tPose.t->data[2]);
                 /* copy readings */
-               m_tTags.emplace_back(ptDetection->id, cTagPosition, cTagOrientation, cCenterPixel, arrCornerPixels);
+               m_vecTags.emplace_back(ptDetection->id, cTagPosition, cTagOrientation, cCenterPixel, arrCornerPixels);
             }
             /* destroy the readings array */
             ::apriltag_detections_destroy(ptDetectionArray);
@@ -373,7 +304,7 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CPiPuckCameraSystemDefaultSensor::Destroy() {
+   void CPiPuckFrontCameraDefaultSensor::Destroy() {
       /* disable the sensor */
       Disable();
       /* stop the stream */
@@ -383,15 +314,15 @@ namespace argos {
       }
       /* close the camera */
       ::close(m_nCameraHandle);
-      /* release the media device */
-      ::media_device_unref(m_psMediaDevice);
+      /* deallocate image memory */
+      ::image_u8_destroy(m_ptImage);
    }
 
    /****************************************/
    /****************************************/
 
-   CPiPuckCameraSystemDefaultSensor::ELedState
-      CPiPuckCameraSystemDefaultSensor::DetectLed(const CVector3& c_position) {
+   CPiPuckFrontCameraDefaultSensor::ELedState
+      CPiPuckFrontCameraDefaultSensor::DetectLed(const CVector3& c_position) const {
       /* project the LED position onto the sensor array */
       CMatrix<3,1> cLedPosition;
       cLedPosition(0) = c_position.GetX();
@@ -402,8 +333,8 @@ namespace argos {
                        cProjection(1,0) / cProjection(2,0));
       CVector2 cSize(DETECT_LED_WIDTH, DETECT_LED_HEIGHT);
       /* declare ranges for truncation */
-      static const CRange<Real> m_cColumnRange(0.0f, IMAGE_WIDTH - 1.0f);
-      static const CRange<Real> m_cRowRange(0.0f, IMAGE_HEIGHT - 1.0f);
+      CRange<Real> m_cColumnRange(0.0f, CCI_PiPuckFrontCameraSensor::m_cResolution.GetX() - 1.0f);
+      CRange<Real> m_cRowRange(0.0f, CCI_PiPuckFrontCameraSensor::m_cResolution.GetY() - 1.0f);
       /* calculate the corners of the region of interest */
       CVector2 cMinCorner(cCenter - 0.5f * cSize);
       CVector2 cMaxCorner(cCenter + 0.5f * cSize);
@@ -440,7 +371,9 @@ namespace argos {
       UInt8* punImageData = static_cast<UInt8*>(m_itCurrentBuffer->second);
       /* extract the data */    
       for(UInt32 un_row = unRowStart; un_row < unRowEnd; un_row += 1) {
-         UInt32 unRowIndex = un_row * IMAGE_WIDTH * IMAGE_BYTES_PER_PIXEL;
+         UInt32 unRowIndex = 
+            static_cast<UInt32>(CCI_PiPuckFrontCameraSensor::m_cResolution.GetX()) *
+            un_row * IMAGE_BYTES_PER_PIXEL;
          for(UInt32 un_column = unColumnStart * IMAGE_BYTES_PER_PIXEL;
              un_column < unColumnEnd * IMAGE_BYTES_PER_PIXEL;
              un_column += (2 * IMAGE_BYTES_PER_PIXEL)) {
@@ -483,8 +416,8 @@ namespace argos {
    /****************************************/
    /****************************************/
    
-   REGISTER_SENSOR(CPiPuckCameraSystemDefaultSensor,
-                   "pipuck_camera_system", "default",
+   REGISTER_SENSOR(CPiPuckFrontCameraDefaultSensor,
+                   "pipuck_front_camera", "default",
                    "Michael Allwright [allsey87@gmail.com]",
                    "1.0",
                    "Camera sensor for the PiPuck Robot",

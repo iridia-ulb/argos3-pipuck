@@ -43,4 +43,13 @@ configure_file(
   ${CMAKE_BINARY_DIR}/testing/test_ground_sensors.lua)
   install(FILES ${CMAKE_BINARY_DIR}/testing/test_ground_sensors.lua DESTINATION share/argos3/testing)
   install(FILES ${CMAKE_BINARY_DIR}/testing/test_ground_sensors.argos DESTINATION share/argos3/testing)
+# cameras test
+configure_file(
+  ${CMAKE_SOURCE_DIR}/testing/test_cameras.argos.in
+  ${CMAKE_BINARY_DIR}/testing/test_cameras.argos)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/testing/test_cameras.lua
+  ${CMAKE_BINARY_DIR}/testing/test_cameras.lua)
+  install(FILES ${CMAKE_BINARY_DIR}/testing/test_cameras.lua DESTINATION share/argos3/testing)
+  install(FILES ${CMAKE_BINARY_DIR}/testing/test_cameras.argos DESTINATION share/argos3/testing)
 

@@ -4,9 +4,9 @@
 # argos3/plugins/robots/pi-puck/hardware
 set(ARGOS3_HEADERS_PLUGINS_ROBOTS_PIPUCK_HARDWARE
   hardware/actuator.h
-#   hardware/pipuck_camera_system_default_sensor.h
   hardware/pipuck_differential_drive_default_actuator.h
   hardware/pipuck_differential_drive_default_sensor.h
+  hardware/pipuck_front_camera_default_sensor.h
   hardware/pipuck_ground_default_sensor.h
   hardware/pipuck_leds_default_actuator.h
   hardware/pipuck_system_default_sensor.h
@@ -24,9 +24,9 @@ set(ARGOS3_SOURCES_PLUGINS_ROBOTS_PIPUCK
   ${ARGOS3_SOURCES_PLUGINS_ROBOTS_PIPUCK}
   ${ARGOS3_HEADERS_PLUGINS_ROBOTS_PIPUCK_HARDWARE}
   hardware/main.cpp
-#   hardware/pipuck_camera_system_default_sensor.cpp
   hardware/pipuck_differential_drive_default_actuator.cpp
   hardware/pipuck_differential_drive_default_sensor.cpp
+  hardware/pipuck_front_camera_default_sensor.cpp
   hardware/pipuck_ground_default_sensor.cpp
   hardware/pipuck_leds_default_actuator.cpp
   hardware/pipuck_system_default_sensor.cpp
