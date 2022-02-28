@@ -7,8 +7,9 @@ end
      It must contain the logic of your controller ]]
 function step()
    for index, tag in ipairs(robot.front_camera.tags) do
-      print("  tag " .. index .. ": " .. tostring(tag.center))
+      print("tag " .. index .. ": " .. tostring(tag.center))
    end
+   print("---")
 end
 
 --[[ This function is executed every time you press the 'reset'
