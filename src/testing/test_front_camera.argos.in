@@ -17,7 +17,7 @@
       <sensors>
         <pipuck_front_camera rotation="0" resolution="640,480" implementation="default" />
       </sensors>
-      <params script="@CMAKE_INSTALL_PREFIX@/share/argos3/testing/test_cameras.lua" />
+      <params script="@CMAKE_INSTALL_PREFIX@/share/argos3/testing/test_front_camera.lua" />
     </lua_controller>
   </controllers>
 
